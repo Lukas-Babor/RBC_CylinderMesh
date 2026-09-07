@@ -1,294 +1,571 @@
 # PipeMesh-RBC
 
-A parametric Gmsh mesh generator for Direct Numerical Simulation (DNS) of Rayleigh-Bénard convection in a cylindrical enclosure using spectral-element solvers such as NekRS and Nek5000.
+A parametric hexahedral mesh generator for **Rayleigh-Bénard convection in cylindrical enclosures**, designed for high-order spectral-element solvers such as [**NekRS**](https://nekrs.readthedocs.io/en/latest/) and [**Nek5000**](https://github.com/Nek5000/Nek5000).
 
-The generator is based on the excellent KTH PipeMesh topology by Saleh Rezaeiravesh, but extends it to applications with wall-bounded convection, where high resolution is required not only at the cylindrical sidewall but also at the top and bottom plates.
+The mesh generator is based on the excellent [**KTH PipeMesh**](https://github.com/KTH-Nek5000/PipeMesh) topology by Saleh Rezaeiravesh (salehr@kth.se), but extends it to wall-bounded thermal convection problems, where boundary layers must be resolved not only at the cylindrical sidewall, but also at the heated bottom plate and the cooled top plate.
 
-The mesh preserves the original PipeMesh cross-sectional topology while introducing a fully consistent wall-normal meshing strategy in both radial and axial directions.
+The generator automatically constructs a structured hexahedral mesh with graded resolution near all solid walls and produces a ready-to-mesh [Gmsh](https://gmsh.info/) geometry script.
 
----
+## Main Features
 
-## Features
+✅ Structured hexahedral mesh
 
-- Cylindrical enclosure geometry
-- Hexahedral spectral-element mesh
-- KTH PipeMesh topology
-- Automatic wall-layer construction
-- Automatic transition-layer construction
-- Automatic computation of:
-  - wall-block radius `RB`
-  - central-block radius `r`
-  - azimuthal resolution `Nc`
-  - axial bulk resolution `Nz_bulk`
-- Geometric grading toward:
-  - cylindrical wall
-  - bottom plate
-  - top plate
-- Continuity checks between blocks
-- Monotonicity checks of wall-normal spacing
-- Automatic generation of a Gmsh `.geo` file
-- Compatible with NekRS/Nek5000 workflows
+✅ Spectral-element-friendly topology
+
+✅ Cylindrical geometry
+
+✅ Boundary-layer refinement near all walls
+
+✅ Geometric wall-normal grading
+
+✅ Automatic element-size matching between mesh blocks
+
+✅ Compatible with NekRS / Nek5000 workflows
+
+✅ Based on the proven KTH PipeMesh cross-sectional topology
 
 ---
 
-## Mesh Topology
+# Block Structure
 
-The cross-section follows the original KTH PipeMesh decomposition consisting of:
+The generated mesh consists of:
 
-- one central inflated-square block
-- four transition blocks
-- four outer wall-adjacent blocks
+### Radial decomposition
 
-Analogously, the axial extrusion of the cross-sectional mesh consists of:
-
-- top boundary-layer block
-- top transition block
-- bulk
-- bottom transition block
-- bottom boundary-layer block
-
-The resulting mesh contains only structured hexahedral elements after extrusion.
-
-## Meshing Philosophy
-
-The original KTH PipeMesh was designed for turbulent pipe flow and therefore resolves the cylindrical wall.
-
-For Rayleigh-Bénard convection, the strongest gradients occur at:
-
-- the cylindrical wall
-- the heated bottom plate
-- the cooled top plate
-
-This mesh generator therefore applies the same wall-normal meshing philosophy in all directions.
-This yields comparable wall-normal element sizes at all walls.
-
-## User Inputs
-
-The mesh is controlled by a small set of physically meaningful parameters:
-
-```
-R                   # cylinder radius
-Lz                  # cylinder height
-
-lambda_             # curved-square parameter
-
-d_wall              # wall-adjacent element size
-
-NB                  # elements in wall block
-NM                  # elements in transition block
-
-compressRatio_B     # grading in wall block
-compressRatio_M     # grading in transition block
-
-priority            # continuity or monotonicity
+```text
+cylindrical wall
+│
+boundary-layer block
+│
+transition block
+│
+inflated-square core
 ```
 
-Typical values:
+### Axial decomposition
 
+```text
+top plate
+│
+boundary-layer block
+│
+transition block
+│
+bulk
+│
+transition block
+│
+boundary-layer block
+│
+bottom plate
 ```
-R = 0.5
+
+The resulting mesh contains only structured hexahedral elements.
+
+docs/images/cross_section.svg
+
+docs/images/walls_3d.svg
+
+---
+
+# Quick Start
+
+## Generate the Gmsh geometry
+
+```bash
+python generate_pipe_rbc.py
+```
+
+This creates
+
+```text
+pipe_rbc.geo
+```
+
+using the parameters specified in the Python script.
+
+---
+
+## Generate the mesh
+
+Using the Gmsh GUI:
+
+```bash
+gmsh pipe_rbc.geo
+```
+
+or from the command line:
+
+```bash
+gmsh pipe_rbc.geo -3 -order 2
+```
+
+This generates
+
+```text
+pipe_rbc.msh
+```
+
+---
+
+## Visualize the mesh
+
+Using Gmsh:
+
+```bash
+gmsh pipe_rbc.msh
+```
+
+or ParaView:
+
+```bash
+paraview
+```
+
+and open
+
+```text
+pipe_rbc.msh
+```
+
+---
+
+## Convert to NekRS / Nek5000
+
+```bash
+gmsh2nek
+```
+
+The generated physical groups are already prepared for typical Nek workflows.
+
+---
+
+# Parameters You Will Most Likely Want to Change
+
+For most applications, only a few parameters need to be adjusted.
+
+---
+
+## Geometry
+
+```python
+R  = 0.5
 Lz = 1.0
+```
 
-lambda_ = 0.30
+where
 
-NB = 1
-NM = 8
+- `R` is the cylinder radius
+- `Lz` is the cylinder height
 
+---
+
+## Wall Resolution
+
+```python
+d_wall = ...
+```
+
+This is the thickness of the element immediately adjacent to all walls. Decreasing `d_wall` increases wall resolution. This is usually the most important parameter (to achieve the desired $y^+$ value of the near-wall nodes).
+
+---
+
+## Number of Boundary-Layer Elements
+
+```python
+NB = ...
+```
+
+Number of elements in the wall-adjacent block.
+
+Increase `NB` if:
+
+- higher Rayleigh numbers are considered,
+- higher boundary-layer resolution is desired.
+
+---
+
+## Number of Transition Elements
+
+```python
+NM = ...
+```
+
+Controls the thickness of the transition region between the boundary-layer block and the core region. Increasing `NM` (with fixed `compressRatio_M`) increases the size of elements in the bulk (relative to the wall-adjacent elements), shrinks the core block and, in consequence, decreases the azimuthal resolution.
+
+---
+
+## Grading Strength
+
+```python
 compressRatio_B = 0.85
 compressRatio_M = 0.87
 ```
 
-# Wall-Normal Grading
-## Boundary-layer block
+Smaller values produce stronger geometric growth of element size with increasing wall distance. `compressRatio_B` controls the wall-adjacent boundary block, and `compressRatio_M` controls the transition block.
 
-The wall-normal element sizes are
+Typical values are:
 
+```python
+0.80 – 0.95
 ```
+
+---
+
+## Central-Block Shape
+
+```python
+lambda_ = 0.30
+```
+
+Controls the shape of the inflated-square central block. The default value reproduces the original KTH PipeMesh quite closely.
+
+---
+
+## Continuity vs Monotonicity
+
+```python
+priority = "monotonicity"
+```
+
+Possible values:
+
+```python
+"monotonicity"
+"continuity"
+```
+
+This only becomes relevant if the automatically computed bulk resolution cannot simultaneously satisfy:
+
+- continuity of element size,
+- monotonic growth of element size away from the walls.
+
+The flag selects which of these reguirements has priority.
+
+---
+
+# All User Inputs
+
+The only parameters that must be specified are:
+
+```python
+R
+Lz
+
+lambda_
+
+d_wall
+
+NB
+NM
+
+compressRatio_B
+compressRatio_M
+
+priority
+```
+
+
+
+Everything else is computed automatically.
+
+---
+
+# Mesh Topology
+
+The cross-section follows the original KTH PipeMesh decomposition, consisting of:
+
+- one central inflated-square block,
+- four transition blocks (composing one transition O-ring),
+- four outer wall-adjacent blocks (composing one boundary-layer O-ring).
+
+The entire cross-section is extruded into five axial regions:
+
+```text
+top wall block
+top transition block
+bulk
+bottom transition block
+bottom wall block
+```
+
+---
+
+# Physical Groups
+
+The generated mesh contains the following physical groups:
+
+| Group | Description |
+|---------|---------|
+| `bottom` | heated bottom plate |
+| `top` | cooled top plate |
+| `side` | cylindrical wall |
+| `flowDomain` | fluid volume |
+
+These names can be mapped directly to NekRS/Nek5000 boundary conditions.
+
+---
+
+# Typical Workflow
+
+```bash
+python generate_pipe_rbc.py
+
+gmsh pipe_rbc.geo -3 -order 2
+
+gmsh2nek
+```
+
+---
+
+# Meshing Philosophy
+
+The original KTH PipeMesh was developed for turbulent pipe-flow DNS.
+
+For Rayleigh-Bénard convection, strong gradients occur at:
+
+- the cylindrical wall,
+- the heated bottom plate,
+- the cooled top plate.
+
+This generator therefore applies the same wall-normal meshing philosophy everywhere:
+
+```text
+wall
+│
+boundary-layer block
+│
+transition block
+│
+core
+```
+
+The goal is to obtain comparable wall-normal resolution at all solid boundaries.
+
+---
+
+# Implementation Details
+
+This section explains how the mesh is generated internally.
+
+Users who only want to generate meshes can safely skip it.
+
+---
+
+## Wall-Normal Grading
+
+### Boundary-Layer Block
+
+Element sizes are generated as a geometric series:
+
+```text
 d_wall
 d_wall*qB
 d_wall*qB²
 ...
 ```
 
-with
-$$q_B = \frac{1}{\mathrm{compressRatio}_B}.$$
+where
 
+```math
+q_B=\frac{1}{\mathrm{compressRatio}_B}.
+```
 
-The wall-block thickness is
+The resulting wall-block thickness is
 
-$$h_B = \sum_{i=0}^{NB-1} d_{wall} q_B^i$$
+```math
+h_B=\sum_{i=0}^{NB-1} d_{wall}q_B^i.
+```
 
-The radius of the wall-block interface is then
+The wall-block interface radius becomes
 
-$$R_B = R - h_B .$$
+```math
+R_B=R-h_B.
+```
 
+---
 
-## Transition block
+### Transition Block
 
-The first transition-layer element continues the grading:
+The transition-layer grading continues the same progression:
 
-$$d_{T,1} = d_{wall} q_B^{NB}.$$
+```math
+d_{T,1}=d_{wall}q_B^{NB}.
+```
 
-Within the transition block, along the coordinate axes:
+and
 
-$$d_{T,k} = d_{T,1} q_M^{k-1}$$
-
-with
-
-$$q_M = \frac{1}{\mathrm{compressRatio}_M}$$
-
-
-The transition-block thickness along the coordinate axes becomes
-
-$$h_M = \sum_{k=1}^{NM} d_{T,k}.$$
-
-# Automatic Computation of $r$
-
-The radius $r$ of the circle passing through the edges of the deformed-square central block is computed automatically. The corner points of the central block are located at
-
-$$\left( \pm \frac{r}{\sqrt2}, \pm \frac{r}{\sqrt2} \right).$$
-
-The arcs defining the curved sides of the central block have centers
-
-$$(0,\pm\lambda R), (\pm\lambda R,0).$$
-
-The central-block half-thickness along the coordinate axes ($r_\mathrm{axis}$) satisfies
-
-$$r_\mathrm{axis} = RB - h_M .$$
-
-Using elementary geometry and the law of cosines, one obtains
-
-$$r = -\frac{\lambda R}{\sqrt2} + \sqrt{ R_{arc}^2 - \frac{(\lambda R)^2}{2} }$$
+```math
+d_{T,k}=d_{T,1}q_M^{k-1}
+```
 
 where
 
-$$R_{arc} = r_{axis} + \lambda R.$$
+```math
+q_M=\frac{1}{\mathrm{compressRatio}_M}.
+```
 
+The transition-block thickness is
 
-# Automatic Computation of $N_c$
+```math
+h_M=\sum_{k=1}^{NM} d_{T,k}.
+```
 
-Continuity between the core block and the transition block is enforced along the coordinate axes.
-The curved core-block boundary intersects the $x$ and $y$ axes at the radial distance from the origin 
+---
 
-$$r_{axis} = R_B - h_M.$$
+## Automatic Computation of the Core Radius
 
-The element size in the core block is then
+The radius `r` of the circle passing through the corners of the inflated-square core block is computed automatically.
 
-$$\Delta_c = \frac{2r_{axis}} {N_c-1},$$
+The transition thickness along the coordinate axes satisfies
 
-where $N_c-1$ is the 1D number of elements in the core block along the $x$ and $y$ axis. It is also the azimuthal resolution of the outer rings per quadrant. This azimuthal/core-block resolution is automatically chosen as
+```math
+r_{axis}=R_B-h_M.
+```
 
-$$N_c = \left\lfloor \frac{2r_{axis}} {d_{T,last}} +1 \right\rfloor,$$
+Using elementary geometry and the law of cosines:
+
+```math
+r=
+-\frac{\lambda R}{\sqrt2}
++
+\sqrt{
+R_{arc}^2
+-
+\frac{(\lambda R)^2}{2}
+}
+```
 
 where
 
-$$d_{T,last}$$
+```math
+R_{arc}=r_{axis}+\lambda R.
+```
 
-is the largest transition-layer element along the $x$ and $y$ axis (at the interface with the core block).
+---
 
-# Automatic Computation of `Nz_bulk`
+## Automatic Computation of `Nc`
 
-The axial mesh consists of
+Continuity between the transition block and the core block is enforced along the coordinate axes.
 
-- bottom wall block
-- bottom transition block
-- bulk
-- top transition block
-- top wall block
+The core element size is
 
+```math
+\Delta_c=
+\frac{2r_{axis}}
+     {N_c-1}.
+```
+
+The azimuthal resolution is automatically chosen as
+
+```math
+N_c=
+\left\lfloor
+\frac{2r_{axis}}
+     {d_{T,last}}
++1
+\right\rfloor.
+```
+
+---
+
+## Automatic Computation of `Nz_bulk`
 
 The remaining bulk height is
 
-$h_{bulk} = L_z - 2(h_B+h_M).$
+```math
+h_{bulk}
+=
+L_z-2(h_B+h_M).
+```
 
 Two candidate values are considered:
 
-$$ N_{z,1} = \left\lfloor \frac{h_\mathrm{bulk}} {d_\mathrm{T,last}} \right\rfloor $$
-$$ N_{z,2} = \left\lceil \frac{h_\mathrm{bulk}} {d_\mathrm{T,last}} \right\rceil $$
+```math
+N_{z,1}
+=
+\left\lfloor
+\frac{h_{bulk}}
+     {d_{T,last}}
+\right\rfloor
+```
 
-The corresponding element-size ratios at the transition-to-core interface are checked for:
+and
 
-- continuity of the element size (within the prescribed compression ratio/growth rate)
-- monotonicity of the element size variation with respect to wall distance
+```math
+N_{z,2}
+=
+\left\lceil
+\frac{h_{bulk}}
+     {d_{T,last}}
+\right\rceil.
+```
 
-A user-configurable priority flag selects between them.
+The generator automatically evaluates:
+
+- continuity,
+- monotonicity,
+
+and selects the preferred candidate according to the user-specified priority.
+
+---
 
 ## Continuity Criterion
 
-A size ratio, e.g. $d_\mathrm{bulk} / d_\mathrm{T,last}$, is considered continuous if
+A size ratio $\Delta_2/\Delta_1$ is considered acceptable if
 
-$$\mathrm{compressRatio} \le \frac{d_\mathrm{bulk}}{d_\mathrm{T,last}} \le \frac1{\mathrm{compressRatio}}.$$
+```math
+\mathrm{compressRatio}
+\le \frac{\Delta_2}{\Delta_1} \le
+\frac1{\mathrm{compressRatio}}.
+```
 
-This criterion is used at:
+This criterion is applied at:
 
 - wall block ↔ transition block
 - transition block ↔ bulk block
 
+---
+
 ## Monotonicity Criterion
 
-The wall-normal element size should not decrease when moving away from a wall.
+Element sizes should not decrease when moving away from a wall.
 
-The corresponding ratio must satisfy
+The ratio therefore satisfies
 
-$$\frac{d_\mathrm{bulk}}{d_\mathrm{T,last}} \ge 1 - \mathrm{tol.}$$
-
-with a relative tolerance adjusted with respect to the compress ratio:
-
-$$\mathrm{tol} = \frac{|1-\mathrm{compressRatio_M}|} {100}.$$
-
-
-# Physical Groups
-
-The generated mesh consists of the outer boundaries (walls) with the following group names:
-
-- `bottom`: heated bottom plate (base)
-- `top`: cooled top plate
-- `side`: cylindrical wall
-
-and the interior fluid volume (named `flowDomain`). These names can be mapped directly to NekRS boundary conditions. See the comment from the original KTH `pipeMesh.geo` file:
-
-> BC tag of the surfaces are assigned in accordance with what is added in usrdat2() routine in case.usr. This is in accordance with the requirements by gmsh2nek. See the following link: https://github.com/yhaomin2007/Nek5000/tree/master/gmsh2nek_sourcecode/gmsh2nek/
-
-although the link does not seem to work anymore.
-
-# Generated Files
-
-Running
-
-```python generate_pipe_rbc.py```
-
-creates a [GMSH](http://gmsh.info//) script
-
-`pipe_rbc.geo`
-
-which can be meshed using either the GMSH GUI or the CLI with
-
-`gmsh pipe_rbc.geo -3 -order 2`
-
-producing the mesh file
-
-`pipe_rbc.msh`
-
-that can be converted to Nek5000/NekRS or other solver formats.
-
-# Typical Workflow
-
+```math
+\frac{d_{bulk}}
+     {d_{T,last}}
+\ge 1-\mathrm{tol}
 ```
-python generate_pipe_rbc.py
 
-gmsh pipe_rbc.geo -3
+where
 
-gmsh2nek
+```math
+\mathrm{tol}
+=
+\frac{|1-\mathrm{compressRatio}_M|}
+     {100}.
 ```
+
+---
 
 # Origin
 
-This mesh generator is based on **KTH PipeMesh** by Saleh Rezaeiravesh (salehr@kth.se) and extends the original pipe-flow mesh design to wall-bounded thermal convection problems.
+This mesh generator is based on the original [**KTH PipeMesh**](https://github.com/KTH-Nek5000/PipeMesh) developed by
 
-The mesh generator as well as this documentation was mostly generated by a Large Language Model (LLM) *GPT* using MS Copilot (basic subscription) on September 3-4, 2026. As a consequence, the codes and especially this documentation migth suffer from some "Absence of Intelligence" (AI). Apologies for that, but humans were too lazy to write this repository themselves.
+**Saleh Rezaeiravesh**  
+salehr@kth.se
+
+and extends the original pipe-flow mesh topology to wall-bounded thermal convection problems.
+
+Large parts of both the mesh generator and this documentation were developed with extensive assistance from Microsoft Copilot (GPT-based LLMs) during September 2026. Consequently, the repository may occasionally exhibit episodes of *Artificial Non-Intelligence*. Bug reports, corrections, and improvements are therefore very welcome.
+
+---
 
 # Intended Applications
+
 - Rayleigh-Bénard natural convection in cylindrical enclosures
 - DNS with NekRS/Nek5000
 - High-order spectral-element simulations
-
+- Research and educational use
