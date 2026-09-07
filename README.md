@@ -166,7 +166,7 @@ where
 d_wall = ...
 ```
 
-This is the thickness of the element immediately adjacent to all walls. Decreasing `d_wall` increases wall resolution. This is usually the most important parameter (to achieve the desired $y^+$ value of the near-wall nodes).
+This is the thickness of the element immediately adjacent to all walls. Decreasing `d_wall` increases near-wall boundary-layer resolution. This is usually the most important parameter (to achieve the desired $y^+$ value of the near-wall nodes).
 
 ---
 
