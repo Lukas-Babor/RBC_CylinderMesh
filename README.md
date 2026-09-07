@@ -580,3 +580,8 @@ Be the next one!
 - DNS with NekRS/Nek5000
 - High-order spectral-element simulations
 - Research and educational use
+
+
+# Outlook
+
+The current generator might still require some fine-tuning after every change of parameters. There is still room for further automation and more convenient selection of input parameters. For example, the script might check some criteria for the azimuthal resolution, e.g. by limiting the cell aspect ratio. It might be useful to let the user select the bulk resolution (element size) and compute the parameters of the transition block ($N_M$) automatically.
