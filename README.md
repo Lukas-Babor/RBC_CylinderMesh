@@ -559,7 +559,16 @@ salehr@kth.se
 
 and extends the original pipe-flow mesh topology to wall-bounded thermal convection problems.
 
-Large parts of both the mesh generator and this documentation were developed with extensive assistance from Microsoft Copilot (GPT-based LLMs) during September 2026. Consequently, the repository may occasionally exhibit episodes of *Artificial Non-Intelligence*. Bug reports, corrections, and improvements are therefore very welcome.
+Large parts of both the mesh generator and this documentation were developed with extensive assistance from Microsoft Copilot (GPT-based LLMs) during September 2026. Consequently, the repository may occasionally exhibit episodes of *Absence of Intelligence* (AI). Bug reports, corrections, and improvements are therefore very welcome.
+
+## Contributors
+
+**Lukáš Bábor** 
+babor@isibrno.cz
+
+- Conceptualization, Supervision of the LLM, corrections and modifications
+
+Be the next one!
 
 ---
 
