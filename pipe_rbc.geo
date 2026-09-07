@@ -1,0 +1,215 @@
+/*
+   ***** gmsh Script for generating 2D/3D mesh for straight pipe. *****
+   ** Saleh Rezaeiravesh, salehr@kth.se
+   >>> For nomenclature, see the attached figure. 
+   >>> Set the SETTINGS
+   >>> To generate 3D mesh: gmsh pipe3DMesh.geo -3 -order 2   
+   >>> To generate 2D mesh: gmsh pipe3DMesh.geo -2 -order 2   
+*/
+
+//constants
+PI=3.14159265359;
+
+////////////////////////////////////////////////////////
+// GENERAL SETTING /////////////////////////////////////
+//***** Choose the mesh dimension
+meshDim=3;  //2 (2D mesh), 3 (3D mesh)
+
+// GRID SETTINGS ///////////////////////////////////////
+//***** Geometrical parameters
+// Note: r<RB<R
+R=0.5;   //Pipe radius
+r=0.3463348139552569;   //radius of the central square part of the mesh
+RB=0.4891715;  //radius of the near wall layer
+th=PI/4.;  //theta
+lambda=0.3;   //=R_arc/R
+Lz=1.0;   //length in z-dir (axial)
+//***** Grid Paramaters
+Nc=19;  // no. of nodes (=#elem+1) in azimuthal direction
+NB=1;   // no. of elemtns adjacent to the wall
+NM=8;   // no. of nodes (=#elem+1) between the near wall layer and central square part
+// compression ratios over the radial lines of the mesh
+compressRatio_B=0.85;  //ratio of grid compression toward the wall (<1)
+compressRatio_M=0.87;  //compression ratio in the middle layer
+///////////////////////////////////////////////////
+
+// --------------------------------------------------
+// ORIGINAL KTH GEOMETRY
+// --------------------------------------------------
+
+dx=r*Cos(th);
+dy=r*Sin(th);
+dxB=RB*Cos(th);
+dyB=RB*Sin(th);
+Dx=R*Cos(th);
+Dy=R*Sin(th);
+
+//***** define points coordinates
+//auxiliary points (only help define the geometry)
+Point(1) = {0, 0, 0, 1.0};
+Point(2) = {lambda*R, 0, 0, 1.0};
+Point(3) = {0, -lambda*R, 0, 1.0};
+Point(4) = {-lambda*R, 0, 0, 1.0};
+Point(5) = {0 , lambda*R, 0, 1.0};
+
+//blocks vertices
+Point(6)={dx, dy, 0.0, 1.0};
+Point(7)={dx, -dy, 0.0, 1.0};
+Point(8)={-dx,-dy, 0.0, 1.0};
+Point(9)={-dx, dy, 0.0, 1.0};
+Point(10)={dxB, dyB, 0.0, 1.0};
+Point(11)={dxB, -dyB, 0.0, 1.0};
+Point(12)={-dxB,-dyB, 0.0, 1.0};
+Point(13)={-dxB, dyB, 0.0, 1.0};
+Point(14)={Dx, Dy, 0.0, 1.0}; //outer points (14-17)
+Point(15)={Dx, -Dy, 0.0, 1.0};
+Point(16)={-Dx,-Dy, 0.0, 1.0};
+Point(17)={-Dx, Dy, 0.0, 1.0}; // outer points
+
+//***** define lines and curves
+Circle(1)={9, 3, 6};   //Circle()={startNode, circleCenter, endNode}
+Circle(2)={6, 4, 7};   
+Circle(3)={7, 5, 8};   
+Circle(4)={8, 2, 9};   
+Circle(5)={13, 1, 10};
+Circle(6)={10, 1, 11};
+Circle(7)={11, 1, 12};
+Circle(8)={12, 1, 13};
+Circle(9)={17, 1, 14}; // outer circle (curves 9-12)
+Circle(10)={14, 1, 15};
+Circle(11)={15, 1, 16};
+Circle(12)={16, 1, 17}; // outer circle
+Line(13)={6, 10};
+Line(14)={7, 11};
+Line(15)={8, 12};
+Line(16)={9, 13};
+Line(17)={10, 14};
+Line(18)={11, 15};
+Line(19)={12, 16};
+Line(20)={13, 17};
+
+//***** assign number of mesh on the created lines/arcs
+Transfinite Line {1, 2, 3, 4} = Nc Using Bump 1.0;   
+Transfinite Line {5, 6, 7, 8} = Nc;   
+Transfinite Line {9, 10, 11, 12} = Nc;   
+Transfinite Line {13, 14, 15, 16} = NM Using Progression compressRatio_M;  
+Transfinite Line {17, 18, 19, 20} = NB Using Progression compressRatio_B;   //over the radial lines near the wall. Note: "For example Progression 2 meaning that each line element in the series will be twice as long as the preceding one)".
+
+//***** create surfaces
+// Note: use a negative sign if a line is swept in the opposite direction of the original definition
+Line Loop(1)={1, 2, 3 ,   4};   Plane Surface(1)={1}; //central part of the mesh
+Line Loop(2)={5, -13, -1, 16};  Plane Surface(2)={2}; 
+Line Loop(3)={13, 6, -14 , -2}; Plane Surface(3)={3}; 
+Line Loop(4)={-3, 14, 7, -15};  Plane Surface(4)={4}; 
+Line Loop(5)={-16, -4, 15, 8};  Plane Surface(5)={5}; 
+Line Loop(6)={9, -17, -5, 20};  Plane Surface(6)={6}; // wall layer (surfaces 6-9)
+Line Loop(7)={17, 10, -18, -6}; Plane Surface(7)={7}; 
+Line Loop(8)={-7, 18, 11, -19}; Plane Surface(8)={8}; 
+Line Loop(9)={-8, 19, 12, -20}; Plane Surface(9)={9}; // wall layer
+
+If (meshDim==2)
+  //Line Loop (50)={9,10,11,12};
+   Physical Line("wall")={9, 10, 11, 12};
+// Physical Line("wall")={50};
+   Physical Surface(1)={1:9};
+EndIf
+
+Recombine Surface "*";
+Transfinite Surface "*";
+
+If (meshDim==3)
+
+   // ==================================================
+   // RBC AXIAL DECOMPOSITION
+   // ==================================================
+
+   z0=0.0;
+   z1=0.010828500000000019;
+   z2=0.18533182591224795;
+   z3=0.814668174087752;
+   z4=0.9891715;
+   z5=1.0;
+
+   blk1[] = Extrude {0,0,z1-z0}
+   {
+      Surface{1:9};
+      Layers{{1},{1}};
+      Recombine;
+   };
+
+   blk2[] = Extrude {0,0,z2-z1}
+   {
+      Surface{
+         blk1[0],blk1[6],blk1[12],
+         blk1[18],blk1[24],blk1[30],
+         blk1[36],blk1[42],blk1[48]
+      };
+      Layers{{1,1,1,1,1,1,1,1},{0.073003834,0.15691629,0.25336738,0.36423071,0.49165982,0.63813006,0.80648666,1}};
+      Recombine;
+   };
+
+   blk3[] = Extrude {0,0,z3-z2}
+   {
+      Surface{
+         blk2[0],blk2[6],blk2[12],
+         blk2[18],blk2[24],blk2[30],
+         blk2[36],blk2[42],blk2[48]
+      };
+      Layers{18};
+      Recombine;
+   };
+
+   blk4[] = Extrude {0,0,z4-z3}
+   {
+      Surface{
+         blk3[0],blk3[6],blk3[12],
+         blk3[18],blk3[24],blk3[30],
+         blk3[36],blk3[42],blk3[48]
+      };
+      Layers{{1,1,1,1,1,1,1,1},{0.19351334,0.36186994,0.50834018,0.63576929,0.74663262,0.84308371,0.92699617,1}};
+      Recombine;
+   };
+
+   blk5[] = Extrude {0,0,z5-z4}
+   {
+      Surface{
+         blk4[0],blk4[6],blk4[12],
+         blk4[18],blk4[24],blk4[30],
+         blk4[36],blk4[42],blk4[48]
+      };
+      Layers{{1},{1}};
+      Recombine;
+   };
+
+   //Physical Surfaces & Volume (Note: gmsh only generates mesh for the physical entities)
+   // BC tag of the surfaces are assigned in accordance with what is added in usrdat2() routine in case.usr. This is in accordance with the requirements by gmsh2nek. see the following link:
+   //https://github.com/yhaomin2007/Nek5000/tree/master/gmsh2nek_sourcecode/gmsh2nek/
+   // 1: bottom
+   // 2: top
+   // 3: side
+   
+   Physical Surface("bottom") = {1:9};
+   
+   Physical Surface("top") = 
+   {
+      blk5[0],blk5[6],blk5[12],blk5[18],blk5[24],
+      blk5[30],blk5[36],blk5[42],blk5[48]
+   };
+   
+   Physical Surface("side") = 
+   {
+      blk1[32],blk1[39],blk1[46],blk1[52],
+      blk2[32],blk2[39],blk2[46],blk2[52],
+      blk3[32],blk3[39],blk3[46],blk3[52],
+      blk4[32],blk4[39],blk4[46],blk4[52],
+      blk5[32],blk5[39],blk5[46],blk5[52]
+   };
+   
+   Physical Volume("flowDomain") = {Volume{:}};
+
+   Recombine Volume "*";
+
+EndIf
+
+Coherence;
+Mesh.MshFileVersion = 2.2;   //To force gmsh v2 format for ourput
