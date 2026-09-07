@@ -62,9 +62,11 @@ bottom plate
 
 The resulting mesh contains only structured hexahedral elements.
 
-docs/images/cross_section.svg
+<p align="center">
+  <img src=docs/images/cross_section.svg>
+  <img src=docs/images/walls_3d.svg>
+</p>
 
-docs/images/walls_3d.svg
 
 ---
 
