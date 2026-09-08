@@ -584,4 +584,12 @@ Be the next one!
 
 # Outlook
 
-The current generator might still require some fine-tuning after every change of parameters. There is still room for further automation and more convenient selection of input parameters. For example, the script might check some criteria for the azimuthal resolution, e.g. by limiting the cell aspect ratio. It might be useful to let the user select the bulk resolution (element size) and compute the parameters of the transition block ($N_M$) automatically.
+The current generator might still require some fine-tuning after every change of parameters. There is still room for further automation and more convenient selection of input parameters. For example, the script might check some criteria for the azimuthal resolution, e.g. by limiting the cell aspect ratio. It might be useful to let the user select the bulk resolution (bulk element size) and compute the parameters of the transition block ($N_M$) automatically.
+
+Also, for now, one still has to compute manually the right value of $d_\mathrm{wall}$ to achieve the desired boundary-layer resolution ($d^+_\mathrm{wall}$) and the same for the bulk resolution (to achieve some desired bulk element size in + units, $\Delta^+$). The script should do that automatically. Suitable input parameters would be the following:
+- estimate of the shear Reynolds number, $\mathrm{Re}_\tau$. It can be a user-defined function (from some empirical correlation from literature) of the control parameters (e.g., Ra and Pr).
+- estimate of the Kolmogorov length scale in the bulk
+- desired wall-normal element size at the wall (first cell height) in + units ($\Delta y^+$). Note that for SEM, each element contains internal collocation points that are clustered towards the edges (these are not generated in GMSH, but only later in Nek, depending on the selected polynomial order).
+- desired element size in the bulk, relative to the Kolmogorov length scale.
+
+Everything else should be computed automatically.
