@@ -8,23 +8,33 @@ from string import Template
 # USER INPUT
 # ============================================================
 
+# Geometry parameters
 R = 0.5
 Lz = 1.0
 
-lambda_ = 0.30
+# Physics parameters
+Re_tau = 180.0
+eta_bulk = 0.003
 
-d_wall = (1-0.978343)*R
+# Resolution targets
+dy_plus_wall = 1.0
+bulk_res_Kolmogorov = 2.0
 
+# Mesh parameters
 NB = 1
-NM = 8
-
 compressRatio_B = 0.85
 compressRatio_M = 0.87
-
+lambda_ = 0.30
+AR_max = 5.0
 priority = "monotonicity"   # monotonicity | continuity
 
+# File names
 geo_template = "pipe_rbc.geo.j2"
 geo_output = "pipe_rbc.geo"
+
+# Computed mesh parameters
+d_wall = dy_plus_wall * Lz / Re_tau
+d_bulk = bulk_res_Kolmogorov * eta_bulk
 
 # ============================================================
 # HELPER FUNCTIONS
@@ -64,6 +74,7 @@ wall_counts = [1] * NB
 # ============================================================
 
 d_trans_first = wall_elems[-1] * qB
+NM = math.ceil(1 + math.log(d_bulk/d_trans_first) / math.log(qM))
 trans_elems = geometric_series(d_trans_first, qM, NM)
 hM = sum(trans_elems)
 d_trans_last = trans_elems[-1]
